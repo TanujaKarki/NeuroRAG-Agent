@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <title>AI Voice + RAG Chatbot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Inter", sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background:
+        radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(162, 155, 254, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 40% 20%, rgba(249, 115, 22, 0.2) 0%, transparent 50%);
+      animation: meshGradient 20s ease infinite;
+      z-index: 0;
+    }
+
+    @keyframes meshGradient {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      33% { transform: translate(30px, -50px) rotate(120deg); }
+      66% { transform: translate(-20px, 20px) rotate(240deg); }
+    }
+
+    .header {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      margin-bottom: 30px;
+      animation: fadeInDown 0.8s ease;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #ffffff;
+      text-shadow: 0 2px 20px rgba(0, 0, 0, 0.2);
+      margin-bottom: 10px;
+      letter-spacing: -1px;
+    }
+
+    .subtitle {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+
+    #app {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 900px;
+      height: 75vh;
+      min-height: 600px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 24px;
+      animation: fadeInUp 0.8s ease;
+    }
+
+    #chat-container {
+      flex: 1;
+      width: 100%;
+      overflow-y: auto;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+    }
+
+    #chat-container::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #chat-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #chat-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+    }
+
+    .message-wrapper {
+      display: flex;
+      margin: 16px 0;
+      animation: slideIn 0.4s ease;
+    }
+
+    .message-wrapper.user {
+      justify-content: flex-end;
+    }
+
+    .message-wrapper.bot {
+      justify-content: flex-start;
+    }
+
+    .message {
+      max-width: 75%;
+      padding: 14px 18px;
+      border-radius: 18px;
+      line-height: 1.6;
+      position: relative;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .message.user {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #ffffff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.bot {
+      background: rgba(255, 255, 255, 0.95);
+      color: #1a1a1a;
+      border-bottom-left-radius: 4px;
+      backdrop-filter: blur(10px);
+    }
+
+    .message strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.85rem;
+      opacity: 0.8;
+    }
+
+    .citations {
+      background: rgba(102, 126, 234, 0.1);
+      border-left: 3px solid #667eea;
+      margin-top: 12px;
+      padding: 12px;
+      font-size: 0.9em;
+      border-radius: 8px;
+      backdrop-filter: blur(5px);
+    }
+
+    .citations strong {
+      display: inline;
+      margin-bottom: 0;
+    }
+
+    .citations ul {
+      margin-top: 8px;
+      padding-left: 20px;
+    }
+
+    .citations li {
+      margin: 6px 0;
+    }
+
+    .citations a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .citations a:hover {
+      color: #764ba2;
+      text-decoration: underline;
+    }
+
+    .citation-image {
+      width: 100%;
+      max-width: 250px;
+      margin-top: 8px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .upload-section {
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(10px);
+      border: 2px dashed rgba(255, 255, 255, 0.4);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      transition: all 0.3s ease;
+    }
+
+    .upload-section:hover {
+      background: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.6);
+      transform: translateY(-2px);
+    }
+
+    .upload-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .file-label {
+      flex: 1;
+      min-width: 200px;
+      padding: 12px 18px;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      color: #ffffff;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+      font-weight: 500;
+    }
+
+    .file-label:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.02);
+    }
+
+    .input-section {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    #questionInput {
+      flex: 1;
+      padding: 14px 20px;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      color: #ffffff;
+      font-size: 1rem;
+      font-family: inherit;
+      transition: all 0.3s ease;
+    }
+
+    #questionInput::placeholder {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    #questionInput:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.25);
+      border-color: rgba(255, 255, 255, 0.5);
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+    }
+
+    button {
+      padding: 14px 24px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: inherit;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    #uploadBtn {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: #ffffff;
+    }
+
+    #askBtn {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      color: #ffffff;
+    }
+
+    #micBtn {
+      background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+      color: #ffffff;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #micBtn.recording {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+      animation: pulseButton 1.5s ease infinite;
+    }
+
+    #micBtn.recording::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      animation: ripple 1.5s ease infinite;
+    }
+
+    .typing-indicator {
+      display: flex;
+      gap: 4px;
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 18px;
+      width: fit-content;
+      border-bottom-left-radius: 4px;
+    }
+
+    .typing-dot {
+      width: 8px;
+      height: 8px;
+      background: #667eea;
+      border-radius: 50%;
+      animation: typingBounce 1.4s ease infinite;
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes pulseButton {
+      0%, 100% {
+        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+      }
+      50% {
+        box-shadow: 0 4px 25px rgba(255, 107, 107, 0.7);
+      }
+    }
+
+    @keyframes ripple {
+      to {
+        transform: translate(-50%, -50%) scale(2);
+        opacity: 0;
+      }
+    }
+
+    @keyframes typingBounce {
+      0%, 60%, 100% {
+        transform: translateY(0);
+      }
+      30% {
+        transform: translateY(-10px);
+      }
+    }
+
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 2rem;
+      }
+
+      #app {
+        height: 80vh;
+      }
+
+      .message {
+        max-width: 85%;
+      }
+
+      .upload-controls {
+        flex-direction: column;
+      }
+
+      .file-label {
+        width: 100%;
+      }
+
+      .input-section {
+        flex-wrap: wrap;
+      }
+
+      button {
+        flex: 1;
+        min-width: 120px;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <h1>🎙️ AI Chat & Voice Assistant</h1>
+    <div class="subtitle">Intelligent AI Agent powered by RAG Technology and Web search support</div>
+  </div>
+
+  <div id="app">
+    <div id="chat-container"></div>
+
+    <div class="upload-section">
+      <div class="upload-controls">
+        <label for="pdfUpload" class="file-label" id="fileLabel">
+          📄 Choose PDF Document
+        </label>
+        <input type="file" id="pdfUpload" accept=".pdf" />
+        <button id="uploadBtn">
+          <span>⬆️</span>
+          Upload
+        </button>
+      </div>
+    </div>
+
+    <div class="input-section">
+      <input id="questionInput" placeholder="Ask me anything about your document..." />
+      <button id="askBtn">
+        <span>💬</span>
+        Ask
+      </button>
+      <button id="micBtn">
+        <span>🎤</span>
+        <span id="micText">Listen</span>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const protocol = window.location.protocol === "https:" ? "https" : "http";
+    const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const host = window.location.host;
+    const BASE_URL = `${protocol}://${host}`;
+    const WS_URL = `${wsProtocol}://${host}`;
+
+    const chatContainer = document.getElementById("chat-container");
+    const micBtn = document.getElementById("micBtn");
+    const micText = document.getElementById("micText");
+    const askBtn = document.getElementById("askBtn");
+    const questionInput = document.getElementById("questionInput");
+    const fileLabel = document.getElementById("fileLabel");
+    const pdfUpload = document.getElementById("pdfUpload");
+
+    let ws = null;
+    let mediaRecorder = null;
+
+    pdfUpload.addEventListener('change', (e) => {
+      if (e.target.files[0]) {
+        fileLabel.textContent = `📄 ${e.target.files[0].name}`;
+      }
+    });
+
+    function appendMessage(sender, message, citations = []) {
+      const wrapper = document.createElement("div");
+      wrapper.classList.add("message-wrapper", sender);
+
+      const msgDiv = document.createElement("div");
+      msgDiv.classList.add("message", sender);
+
+      let html = `<strong>${sender === "user" ? "👤 You" : "🤖 Assistant"}:</strong> ${message}`;
+
+      if (citations.length > 0) {
+        html += `<div class="citations"><strong>📚 Sources:</strong><ul>`;
+        citations.forEach((c) => {
+          if (c.Source) {
+            html += `<li><a href="${c.Source}" target="_blank">${c.Source}</a></li>`;
+          } else if (c.page && c.image) {
+            html += `<li>Page ${c.page}<br><img src="${BASE_URL}/${c.image}" class="citation-image" /></li>`;
+          } else if (c.page) {
+            html += `<li>Page ${c.page}</li>`;
+          }
+        });
+        html += `</ul></div>`;
+      }
+
+      msgDiv.innerHTML = html;
+      wrapper.appendChild(msgDiv);
+      chatContainer.appendChild(wrapper);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function showTypingIndicator() {
+      const wrapper = document.createElement("div");
+      wrapper.classList.add("message-wrapper", "bot");
+      wrapper.id = "typing-indicator";
+
+      const indicator = document.createElement("div");
+      indicator.classList.add("typing-indicator");
+      indicator.innerHTML = `
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      `;
+
+      wrapper.appendChild(indicator);
+      chatContainer.appendChild(wrapper);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function hideTypingIndicator() {
+      const indicator = document.getElementById("typing-indicator");
+      if (indicator) indicator.remove();
+    }
+
+    document.getElementById("uploadBtn").onclick = async () => {
+      const file = pdfUpload.files[0];
+      if (!file) return alert("Please select a PDF first.");
+
+      showTypingIndicator();
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const res = await fetch(`${BASE_URL}/upload`, { method: "POST", body: formData });
+        const data = await res.json();
+        hideTypingIndicator();
+        appendMessage("bot", `✅ Successfully uploaded <b>${data.filename}</b> with ${data.num_pages} pages and ${data.num_images} images. Ready to answer your questions!`);
+      } catch (error) {
+        hideTypingIndicator();
+        appendMessage("bot", "❌ Upload failed. Please try again.");
+      }
+    };
+
+    async function askQuestion() {
+      const query = questionInput.value.trim();
+      if (!query) return;
+
+      appendMessage("user", query);
+      questionInput.value = "";
+      showTypingIndicator();
+
+      try {
+        const res = await fetch(`${BASE_URL}/ask`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query }),
+        });
+        const data = await res.json();
+        hideTypingIndicator();
+        const rag = data["RAG Answer"] || {};
+        appendMessage("bot", rag.answer || "I couldn't find an answer in the document.", rag.citations || []);
+      } catch (error) {
+        hideTypingIndicator();
+        appendMessage("bot", "❌ Something went wrong. Please try again.");
+      }
+    }
+
+    askBtn.onclick = askQuestion;
+    questionInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') askQuestion();
+    });
+
+    micBtn.onclick = async () => {
+  if (micBtn.classList.contains("recording")) {
+    // Stop
+    micBtn.classList.remove("recording");
+    micText.textContent = "Listen";
+    if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+    setTimeout(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close(1000, "User stopped recording");
+    }, 500);
+    return;
+  }
+
+  // Start
+  micBtn.classList.add("recording");
+  micText.textContent = "Stop";
+
+  ws = new WebSocket(`${WS_URL}/listen`);
+  ws.binaryType = "arraybuffer";
+
+  ws.onopen = async () => {
+    console.log("[Mic] WebSocket open, starting mic...");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const options = { mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4" };
+      mediaRecorder = new MediaRecorder(stream, options);
+
+      mediaRecorder.ondataavailable = async (e) => {
+        if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+          try {
+            const buf = await e.data.arrayBuffer();
+            ws.send(buf);
+          } catch (err) {
+            console.error("[Mic] send error:", err);
+          }
+        }
+      };
+
+      mediaRecorder.start(250); // send chunks every 250 ms
+      console.log("[Mic] Recording started.");
+    } catch (err) {
+      console.error("[Mic] getUserMedia failed:", err);
+      appendMessage("bot", "⚠️ Microphone access denied or unsupported.");
+      micBtn.classList.remove("recording");
+      micText.textContent = "Listen";
+    }
+  };
+
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    if (msg.type === "transcript") {
+      appendMessage("user", msg.data);
+      showTypingIndicator();
+    } else if (msg.type === "rag_answer") {
+      hideTypingIndicator();
+      appendMessage("bot", msg.data.answer, msg.data.citations);
+    } else if (msg.type === "rag_error") {
+      hideTypingIndicator();
+      appendMessage("bot", "⚠️ " + msg.data);
+    }
+  };
+
+  ws.onclose = (e) => {
+    console.log("[WS] closed", e);
+    micBtn.classList.remove("recording");
+    micText.textContent = "Listen";
+  };
+
+  ws.onerror = (err) => {
+    console.error("[WS] error:", err);
+  };
+};
+
+  </script>
+</body>
+</html>

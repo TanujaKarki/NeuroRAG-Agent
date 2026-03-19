@@ -1,0 +1,23 @@
+fastapi~=0.120.4
+uvicorn
+pymupdf
+pinecone[grpc]>=3.0.0
+uvicorn[standard]
+pinecone-client~=6.0.0
+pinecone~=7.3.0
+openai~=2.6.1
+requests~=2.32.5
+python-multipart
+pillow~=12.0.0
+tiktoken   # For token counting/splitting, if needed
+langchain  # For semantic text splitter
+langchain-text-splitters~=1.0.0
+dotenv~=0.9.9
+python-dotenv~=1.2.1
+pinecone[asyncio]
+langchain
+openai
+deepgram-sdk
+
+langchain-openai~=1.0.1
+langchain-community~=0.4.1
